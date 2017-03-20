@@ -1,0 +1,480 @@
+import UIKit
+import ImageIO
+
+public extension UIView {
+    
+    public class func instantiateFromNib<T: UIView>(_ viewType: T.Type) -> T {
+        return Bundle.main.loadNibNamed(String(describing: viewType), owner: nil, options: nil)!.first as! T
+    }
+    
+    public class func instantiateFromNib() -> Self {
+        return instantiateFromNib(self)
+    }
+    
+    func isScrolling () -> Bool {
+        if let scrollView = self as? UIScrollView {
+            if (scrollView.isDragging || scrollView.isDecelerating) {
+                return true
+            }
+        }
+        
+        for subview in self.subviews {
+            if ( subview.isScrolling() ) {
+                return true
+            }
+        }
+        return false
+    }
+    
+    var parentViewController: UIViewController? {
+        var parentResponder: UIResponder? = self
+        while parentResponder != nil {
+            parentResponder = parentResponder!.next
+            if let viewController = parentResponder as? UIViewController {
+                return viewController
+            }
+        }
+        return nil
+    }
+}
+
+extension String {
+    
+    subscript (r: CountableClosedRange<Int>) -> String {
+        get {
+            let startIndex =  self.index(self.startIndex, offsetBy: r.lowerBound)
+            let endIndex = self.index(startIndex, offsetBy: r.upperBound - r.lowerBound)
+            return self[startIndex...endIndex]
+        }
+    }
+    
+    func toDateTime() -> Date
+    {
+        //Create Date Formatter
+        let dateFormatter = DateFormatter()
+        
+        //Specify Format of String to Parse
+        dateFormatter.dateFormat = "yyyy-MM-dd'T'HH:mm:ss.SSSZ"
+        
+        //Parse into NSDate
+        let dateFromString : Date = dateFormatter.date(from: self)!
+        
+        //Return Parsed Date
+        return dateFromString
+    }
+    
+    subscript(r: Range<Int>) -> String? {
+        get {
+            let stringCount = self.characters.count as Int
+            if (stringCount < r.upperBound) || (stringCount < r.lowerBound) {
+                return nil
+            }
+            let startIndex = self.characters.index(self.startIndex, offsetBy: r.lowerBound)
+            // let endIndex = <#T##String.CharacterView corresponding to `startIndex`##String.CharacterView#>.index(startIndex, offsetBy: r.upperBound - r.lowerBound)
+            let endIndex = self.characters.index(startIndex, offsetBy: r.upperBound - r.lowerBound)
+            return self[(startIndex ..< endIndex)]
+        }
+    }
+    
+    func containsAlphabets() -> Bool {
+        //Checks if all the characters inside the string are alphabets
+        let set = CharacterSet.letters
+        return self.utf16.contains( where: { return set.contains(UnicodeScalar($0)!)  } )
+    }
+    
+    func digitsOnly() -> String{
+        let stringArray = self.components(
+            separatedBy: CharacterSet.decimalDigits.inverted)
+        let newString = stringArray.joined(separator: "")
+        
+        return newString
+    }
+    
+    func trim() -> String {
+        return self.trimmingCharacters(in: CharacterSet.whitespaces)
+    }
+}
+
+// Credit to : https://github.com/dennisweissmann/DeviceKit
+public extension UIDevice {
+    
+    var modelName: String {
+        var systemInfo = utsname()
+        uname(&systemInfo)
+        let machineMirror = Mirror(reflecting: systemInfo.machine)
+        let identifier = machineMirror.children.reduce("") { identifier, element in
+            guard let value = element.value as? Int8, value != 0 else { return identifier }
+            return identifier + String(UnicodeScalar(UInt8(value)))
+        }
+        #if os(iOS)
+            switch identifier {
+            case "iPod5,1":                                 return "iPod Touch 5"
+            case "iPod7,1":                                 return "iPod Touch 6"
+            case "iPhone3,1", "iPhone3,2", "iPhone3,3":     return "iPhone 4"
+            case "iPhone4,1":                               return "iPhone 4s"
+            case "iPhone5,1", "iPhone5,2":                  return "iPhone 5"
+            case "iPhone5,3", "iPhone5,4":                  return "iPhone 5c"
+            case "iPhone6,1", "iPhone6,2":                  return "iPhone 5s"
+            case "iPhone7,2":                               return "iPhone 6"
+            case "iPhone7,1":                               return "iPhone 6 Plus"
+            case "iPhone8,1":                               return "iPhone 6s"
+            case "iPhone8,2":                               return "iPhone 6s Plus"
+            case "iPhone9,1", "iPhone9,3":                  return "iPhone7"
+            case "iPhone9,2", "iPhone9,4":                  return "iPhone7Plus"
+            case "iPhone8,4":                               return "iPhone SE"
+            case "iPad2,1", "iPad2,2", "iPad2,3", "iPad2,4":return "iPad 2"
+            case "iPad3,1", "iPad3,2", "iPad3,3":           return "iPad 3"
+            case "iPad3,4", "iPad3,5", "iPad3,6":           return "iPad 4"
+            case "iPad4,1", "iPad4,2", "iPad4,3":           return "iPad Air"
+            case "iPad5,3", "iPad5,4":                      return "iPad Air 2"
+            case "iPad2,5", "iPad2,6", "iPad2,7":           return "iPad Mini"
+            case "iPad4,4", "iPad4,5", "iPad4,6":           return "iPad Mini 2"
+            case "iPad4,7", "iPad4,8", "iPad4,9":           return "iPad Mini 3"
+            case "iPad5,1", "iPad5,2":                      return "iPad Mini 4"
+            case "iPad6,3", "iPad6,4", "iPad6,7", "iPad6,8":return "iPad Pro"
+            case "AppleTV5,3":                              return "Apple TV"
+            case "i386", "x86_64":                          return "Simulator"
+            default:                                        return identifier
+            }
+        #elseif os(tvOS)
+            switch identifier {
+            case "AppleTV5,3": return appleTV4
+            case "i386", "x86_64": return simulator(mapToDevice(identifier: ProcessInfo().environment["SIMULATOR_MODEL_IDENTIFIER"] ?? "tvOS"))
+            default: return unknown(identifier)
+            }
+        #endif
+    }
+    
+}
+
+extension UIColor {
+    convenience init(hexString: String) {
+        let hex = hexString.trimmingCharacters(in: CharacterSet.alphanumerics.inverted)
+        var int = UInt32()
+        Scanner(string: hex).scanHexInt32(&int)
+        let a, r, g, b: UInt32
+        switch hex.characters.count {
+        case 3: // RGB (12-bit)
+            (a, r, g, b) = (255, (int >> 8) * 17, (int >> 4 & 0xF) * 17, (int & 0xF) * 17)
+        case 6: // RGB (24-bit)
+            (a, r, g, b) = (255, int >> 16, int >> 8 & 0xFF, int & 0xFF)
+        case 8: // ARGB (32-bit)
+            (a, r, g, b) = (int >> 24, int >> 16 & 0xFF, int >> 8 & 0xFF, int & 0xFF)
+        default:
+            (a, r, g, b) = (1, 1, 1, 0)
+        }
+        self.init(red: CGFloat(r) / 255, green: CGFloat(g) / 255, blue: CGFloat(b) / 255, alpha: CGFloat(a) / 255)
+    }
+}
+
+
+public extension UIImage {
+    
+    func resizeWithPercentage(_ percentage: CGFloat) -> UIImage? {
+        var width = self.size.width * percentage
+        if width < 320 {
+            width = 320
+        }
+        var height = self.size.height * percentage
+        if height < 480 {
+            height = 480
+        }
+        let newSize = CGSize(width: width, height: height)
+        
+        UIGraphicsBeginImageContext(newSize)
+        
+        self.draw(in: CGRect(x: 0, y: 0, width: newSize.width, height: newSize.height))
+        // Get the new image from the context
+        let newImage = UIGraphicsGetImageFromCurrentImageContext()
+        
+        UIGraphicsEndImageContext()
+        
+        return newImage
+    }
+    
+    func fixOrientation() -> UIImage {
+        
+        // No-op if the orientation is already correct
+        if ( self.imageOrientation == UIImageOrientation.up ) {
+            return self;
+        }
+        
+        // We need to calculate the proper transformation to make the image upright.
+        // We do it in 2 steps: Rotate if Left/Right/Down, and then flip if Mirrored.
+        var transform: CGAffineTransform = CGAffineTransform.identity
+        
+        if ( self.imageOrientation == UIImageOrientation.down || self.imageOrientation == UIImageOrientation.downMirrored ) {
+            transform = transform.translatedBy(x: self.size.width, y: self.size.height)
+            transform = transform.rotated(by: CGFloat(M_PI))
+        }
+        
+        if ( self.imageOrientation == UIImageOrientation.left || self.imageOrientation == UIImageOrientation.leftMirrored ) {
+            transform = transform.translatedBy(x: self.size.width, y: 0)
+            transform = transform.rotated(by: CGFloat(M_PI_2))
+        }
+        
+        if ( self.imageOrientation == UIImageOrientation.right || self.imageOrientation == UIImageOrientation.rightMirrored ) {
+            transform = transform.translatedBy(x: 0, y: self.size.height);
+            transform = transform.rotated(by: CGFloat(-M_PI_2));
+        }
+        
+        if ( self.imageOrientation == UIImageOrientation.upMirrored || self.imageOrientation == UIImageOrientation.downMirrored ) {
+            transform = transform.translatedBy(x: self.size.width, y: 0)
+            transform = transform.scaledBy(x: -1, y: 1)
+        }
+        
+        if ( self.imageOrientation == UIImageOrientation.leftMirrored || self.imageOrientation == UIImageOrientation.rightMirrored ) {
+            transform = transform.translatedBy(x: self.size.height, y: 0);
+            transform = transform.scaledBy(x: -1, y: 1);
+        }
+        
+        // Now we draw the underlying CGImage into a new context, applying the transform
+        // calculated above.
+        let ctx: CGContext = CGContext(data: nil, width: Int(self.size.width), height: Int(self.size.height),
+                                       bitsPerComponent: self.cgImage!.bitsPerComponent, bytesPerRow: 0,
+                                       space: self.cgImage!.colorSpace!,
+                                       bitmapInfo: self.cgImage!.bitmapInfo.rawValue)!;
+        ctx.concatenate(transform)
+        
+        if ( self.imageOrientation == UIImageOrientation.left ||
+            self.imageOrientation == UIImageOrientation.leftMirrored ||
+            self.imageOrientation == UIImageOrientation.right ||
+            self.imageOrientation == UIImageOrientation.rightMirrored ) {
+            ctx.draw(self.cgImage!, in: CGRect(x: 0,y: 0,width: self.size.height,height: self.size.width))
+        } else {
+            ctx.draw(self.cgImage!, in: CGRect(x: 0,y: 0,width: self.size.width,height: self.size.height))
+        }
+        
+        // And now we just create a new UIImage from the drawing context and return it
+        return UIImage(cgImage: ctx.makeImage()!)
+    }
+    
+    class func delayForImageAtIndex(_ index: Int, source: CGImageSource!) -> Double {
+        var delay = 0.2 //seconds
+        #if USE_ACTUAL_GIF_FRAME_DELAY
+            //XXX some rare GIFs have a bad delay property and will crash this code
+            //XXX since these are only previews the exact frame delay is unimportant
+            //XXX in practice 2/10th second per frame is common for these previews
+            // Get dictionaries
+            let cfProperties = CGImageSourceCopyPropertiesAtIndex(source, index, nil)
+            if cfProperties != nil {
+                let theGIFpropertyDict:UnsafeMutableRawPointer? = Unmanaged.passUnretained(kCGImagePropertyGIFDictionary).toOpaque()
+                if theGIFpropertyDict != nil {
+                    let gifProperties:CFDictionary? = unsafeBitCast(CFDictionaryGetValue(cfProperties, theGIFpropertyDict), to: CFDictionary.self)
+                    if gifProperties != nil {
+                        let gifDelayTimeProp:UnsafeMutableRawPointer? = Unmanaged.passUnretained(kCGImagePropertyGIFDelayTime).toOpaque()
+                        if gifDelayTimeProp != nil {
+                            let gifDelay:UnsafeRawPointer? = CFDictionaryGetValue(gifProperties, gifDelayTimeProp)
+                            if gifDelay != nil {
+                                let delayNum:NSNumber? = unsafeBitCast(gifDelay, to: AnyObject.self) as? NSNumber
+                                if delayNum != nil {
+                                    let _delay:Double = Double(delayNum!)
+                                    delay = _delay
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        #endif //USE_ACTUAL_GIF_FRAME_DELAY
+        return delay
+    }
+    
+    class func animatedImageFromSource(_ source: CGImageSource) -> UIImage? {
+        let count = CGImageSourceGetCount(source)
+        var images = [CGImage]()
+        var totalPlayTime:Double = 0.0
+        
+        // extract images
+        for i in 0..<count {
+            // Add image
+            if let image = CGImageSourceCreateImageAtIndex(source, i, nil) {
+                images.append(image)
+            }
+            
+            let delaySeconds = UIImage.delayForImageAtIndex(Int(i), source: source)
+            totalPlayTime += delaySeconds
+        }
+        
+        // make image 'frames'
+        var frames = [UIImage]()
+        var frame: UIImage
+        
+        for i in 0..<count {
+            frame = UIImage(cgImage: images[Int(i)])
+            frames.append(frame)
+        }
+        
+        //voila!
+        let animatedImage = UIImage.animatedImage(with: frames, duration: totalPlayTime)
+        
+        return animatedImage
+    }
+    
+    public class func animatedImageFromGiphyURL(_ url:URL, completion:((_ animatedImage: UIImage?, _ url:URL?) -> Void)?) {
+        var animatedImg:UIImage? = nil
+        // DispatchQueue.global(priority: DispatchQueue.GlobalQueuePriority.background).async {
+        DispatchQueue.global(qos: DispatchQoS.QoSClass.default).async(execute: {
+            var data:Data? = nil
+            do {
+                data = try Data(contentsOf: url, options: .uncached)
+            } catch {
+                debugPrint(error)
+            }
+            if data == nil {
+                return
+            }
+            let source:CGImageSource? = CGImageSourceCreateWithData(data! as CFData, nil)
+            if source == nil {
+                if completion != nil {
+                    completion!(nil, url)
+                }
+                return
+            }
+            data = nil //no longer needed
+            
+            animatedImg = UIImage.animatedImageFromSource(source!)
+            //  source = nil //no longer needed
+            
+            if completion != nil {
+                completion!(animatedImg, url)
+            }
+        })//dispatch_async
+    }
+}
+
+extension Bundle {
+    
+    var releaseVersionNumber: String? {
+        return self.infoDictionary?["CFBundleShortVersionString"] as? String
+    }
+    
+    var buildVersionNumber: String? {
+        return self.infoDictionary?["CFBundleVersion"] as? String
+    }
+    
+}
+
+extension UILabel {
+    
+    @IBInspectable var LBLLetterSpacing: Float {
+        get {
+            var range = NSMakeRange(0, (text ?? "").characters.count)
+            guard let kern = attributedText?.attribute(NSKernAttributeName, at: 0, effectiveRange: &range),
+                let value = kern as? NSNumber
+                else {
+                    return 0
+            }
+            return value.floatValue
+        }
+        set {
+            var attText:NSMutableAttributedString?
+            
+            if let attributedText = attributedText {
+                attText = NSMutableAttributedString(attributedString: attributedText)
+            } else if let text = text {
+                attText = NSMutableAttributedString(string: text)
+            } else {
+                attText = NSMutableAttributedString(string: "")
+            }
+            
+            let range = NSMakeRange(0, attText!.length)
+            attText!.addAttribute(NSKernAttributeName, value: NSNumber(value: newValue as Float), range: range)
+            self.attributedText = attText
+        }
+    }
+}
+
+extension Int {
+    
+    func formatUsingAbbrevation () -> String {
+        let numFormatter = NumberFormatter()
+        
+        typealias Abbrevation = (threshold:Double, divisor:Double, suffix:String)
+        let abbreviations:[Abbrevation] = [(0, 1, ""),
+                                           (1000.0, 1000.0, "K"),
+                                           (100_000.0, 1_000_000.0, "M"),
+                                           (100_000_000.0, 1_000_000_000.0, "B")]
+        // you can add more !
+        
+        let startValue = Double (abs(self))
+        let abbreviation:Abbrevation = {
+            var prevAbbreviation = abbreviations[0]
+            for tmpAbbreviation in abbreviations {
+                if (startValue < tmpAbbreviation.threshold) {
+                    break
+                }
+                prevAbbreviation = tmpAbbreviation
+            }
+            return prevAbbreviation
+        } ()
+        
+        let value = Double(self) / abbreviation.divisor
+        numFormatter.positiveSuffix = abbreviation.suffix
+        numFormatter.negativeSuffix = abbreviation.suffix
+        numFormatter.allowsFloats = true
+        numFormatter.minimumIntegerDigits = 1
+        numFormatter.minimumFractionDigits = 0
+        numFormatter.maximumFractionDigits = 1
+        
+        return numFormatter.string(from: NSNumber (value: value as Double))!
+    }
+    
+}
+
+
+extension Date {
+    
+    func yearsFrom(_ date:Date)   -> Int {
+        return (Calendar.current as NSCalendar).components(.year, from: date, to: self, options: []).year!
+    }
+    func monthsFrom(_ date:Date)  -> Int {
+        return (Calendar.current as NSCalendar).components(.month, from: date, to: self, options: []).month!
+    }
+    func weeksFrom(_ date:Date)   -> Int {
+        return (Calendar.current as NSCalendar).components(.weekOfYear, from: date, to: self, options:[] ).weekOfYear!
+    }
+    func daysFrom(_ date:Date)    -> Int {
+        return (Calendar.current as NSCalendar).components(.weekday, from: date, to: self, options: []).day!
+    }
+    func hoursFrom(_ date:Date)   -> Int {
+        return (Calendar.current as NSCalendar).components(.hour, from: date, to: self, options: []).hour!
+    }
+    func minutesFrom(_ date:Date) -> Int {
+        return (Calendar.current as NSCalendar).components(.minute, from: date, to: self, options: []).minute!
+    }
+    func secondsFrom(_ date:Date) -> Int {
+        return (Calendar.current as NSCalendar).components(.second, from: date, to: self, options: []).second!
+    }
+    
+    var relativeTime: String {
+        
+        let now = Date()
+        if now.hoursFrom(self) < 24 {
+            if now.hoursFrom(self)   > 0 {
+                return "\(now.hoursFrom(self)) hr"     + {
+                    return now.hoursFrom(self)   > 1 ? "s" : "" }() + " ago"
+            }
+            else {
+                
+                if now.minutesFrom(self) > 0 {
+                    return "\(now.minutesFrom(self)) min" + { return now.minutesFrom(self) > 1 ? "s" : "" }() + " ago"
+                }
+                else if now.secondsFrom(self)  < 60 {
+                    return "now"
+                }
+                
+            }
+        }
+        
+        if now.daysFrom(self)    > 0 {
+            if daysFrom(self) == 1 { return "Yesterday" }
+        }
+        
+        let format = DateFormatter()
+        format.dateFormat = "MMM dd"
+        let conString = format.string(from: self)
+        return (conString)
+        
+    }
+}
