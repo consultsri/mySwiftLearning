@@ -1,0 +1,97 @@
+import UIKit
+
+@objc class ImageCacheLoader: NSObject {
+    
+    var imageDict = NSMutableDictionary()
+    
+    class var sharedLoader : ImageCacheLoader {
+        struct Static {
+            static let instance : ImageCacheLoader = ImageCacheLoader()
+        }
+        return Static.instance
+    }
+    
+    @objc func cleanCache(_ urlString: String?) {
+        if urlString != nil {
+            self.imageDict.removeObject(forKey: urlString!)
+        }
+    }
+    
+    @objc func imageForUrl(_ urlString: String, completionHandler:@escaping (_ image: UIImage?, _ url: String) -> ()) {
+        //DispatchQueue.global(priority: DispatchQueue.GlobalQueuePriority.background).async(execute: {()in
+        DispatchQueue.global(qos: DispatchQoS.QoSClass.default).async {
+            
+            var cachedImage:UIImage? = self.imageDict.object(forKey: urlString) as? UIImage
+            if cachedImage != nil {
+                DispatchQueue.main.async(execute: {() in
+                    completionHandler(cachedImage, urlString)
+                })
+                debugPrint("    FOUND   : \(urlString)")
+                return
+            }
+            debugPrint("NOT found   : \(urlString)")
+            
+            let downloadTask: URLSessionDataTask = URLSession.shared.dataTask(with: URL(string: urlString)!,
+                                                                              completionHandler: {(data: Data?, response: URLResponse?, error: Error?) -> Void in
+                                                                                if (error != nil) {
+                                                                                    completionHandler(nil, urlString)
+                                                                                    return
+                                                                                }
+                                                                                
+                                                                                if data != nil {
+                                                                                    cachedImage = UIImage(data: data!)
+                                                                                    if cachedImage != nil {
+                                                                                        self.imageDict.setObject(cachedImage!, forKey: urlString.copy() as! NSCopying)
+                                                                                        DispatchQueue.main.async(execute: {() in
+                                                                                            completionHandler(cachedImage, urlString)
+                                                                                            cachedImage = nil
+                                                                                        })
+                                                                                        return
+                                                                                    }
+                                                                                    DispatchQueue.main.async(execute: {() in
+                                                                                        completionHandler(cachedImage, urlString)
+                                                                                        cachedImage = nil
+                                                                                    })
+                                                                                    return
+                                                                                }
+            })
+            downloadTask.resume()
+        }
+        
+    }
+    
+    
+    class func cropToSquare(image originalImage: UIImage) -> UIImage {
+        if originalImage.size.width == originalImage.size.height {return originalImage}
+        let contextImage: UIImage = UIImage(cgImage: originalImage.cgImage!)
+        let contextSize: CGSize = contextImage.size
+        let posX: CGFloat
+        let posY: CGFloat
+        let width: CGFloat
+        let height: CGFloat
+        
+        if contextSize.width > contextSize.height {
+            posX = ((contextSize.width - contextSize.height) / 2)
+            posY = 0
+            width = contextSize.height
+            height = contextSize.height
+        } else {
+            posX = 0
+            posY = ((contextSize.height - contextSize.width) / 2)
+            width = contextSize.width
+            height = contextSize.width
+        }
+        
+        let rect: CGRect = CGRect(x: posX, y: posY, width: width, height: height)
+        
+        let imageRef: CGImage = contextImage.cgImage!.cropping(to: rect)!
+        
+        let image: UIImage = UIImage(cgImage: imageRef, scale: originalImage.scale, orientation: originalImage.imageOrientation)
+        
+        return image
+    }
+    
+    func clearUserCache () {
+        self.imageDict.removeAllObjects()
+    }
+}
