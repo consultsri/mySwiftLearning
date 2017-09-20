@@ -1,0 +1,114 @@
+// Two string are permutated
+//Ex: "abcd"  , "dcab" -> true  "abcd" , "abde" -> false
+
+/*
+compareString (sourceStr: String , destStr : String )
+
+sourceStr  -  String A for comapre
+
+destStr -  String B to compare
+
+return - true- Success ( Both String are same in permutation)
+       - False - Failure ( Both string are not same)
+
+*/
+func compareString (sourceStr: String? , destStr : String? ) -> Bool  {
+  
+  
+  //Validate String is not null
+  
+  if ( sourceStr == nil || destStr == nil ||
+       sourceStr?.isEmpty == true || destStr?.isEmpty == true) {
+        
+         // Nothing to test
+         return false
+         
+       }
+  
+  // Lenght case - Use case "abcde" with "abcdef"
+   if (sourceStr?.characters.count !=  destStr?.characters.count) {
+     return false
+   }
+      
+  
+  var str1 = ""
+  var str2 = ""
+      
+      //convert to lower case
+      str1 = sourceStr!.lowercased()
+      str2 = destStr!.lowercased()
+      
+  //validate  -- "abcd" with "bcda"
+    let char1 = str1.characters.sorted()
+    let char2 = str2.characters.sorted()
+      
+      
+ 
+      if char1 == char2 {
+       return true 
+      }
+     
+      return false
+  
+  
+  
+}
+
+/*
+computePermuteFor - to compute using Dictionary as Hashmap in swift 3
+*/
+
+ func computePermuteFor (firstStr: String? , andSecondStr : String? ) -> Bool  {
+        //Validate String is not null
+        if ( firstStr == nil || andSecondStr == nil ||
+            firstStr?.isEmpty == true || andSecondStr?.isEmpty == true) {
+            
+            // Nothing to test ( Nothing to compare)
+            return false
+            
+        }
+        
+        // Lenght case - Use case "abcde" with "abcdef"
+        if (firstStr?.characters.count !=  andSecondStr?.characters.count) {
+            return false
+        }
+        
+        //Dictionary as hashMap
+        var hashDict:[Character:Int] = [:]
+        let char1Array = Array(firstStr!.characters)
+        let char2Array = Array(andSecondStr!.characters)
+        
+        //assign char as key and have count as value in 
+        for char1 in char1Array  {
+            
+            if hashDict[char1] != nil {
+                let countValue = hashDict[char1]
+                hashDict[char1] = countValue! + 1
+            }
+            else {
+                hashDict[char1] = 1
+            }
+            
+        }
+        
+        for char2 in char2Array 
+        {
+            if hashDict[char2] == nil
+            {
+                // break and send false  as andSecondStr char is not present in firstStr
+                return false   
+            }
+            else 
+            {
+                let countValue = hashDict[char2]
+                hashDict[char2] = countValue! - 1
+                
+                let counterValue :Int = hashDict[char2]!
+                if counterValue < 0 {
+                    // returning false as same character is present more in str2
+                    return false
+                }   
+            }   
+        }
+        return true
+    }
