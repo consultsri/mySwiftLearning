@@ -1,73 +1,44 @@
-// Two string are permutated
-//Ex: "abcd"  , "dcab" -> true  "abcd" , "abde" -> false
-
-/*
-compareString (sourceStr: String , destStr : String )
-
-sourceStr  -  String A for comapre
-
-destStr -  String B to compare
-
-return - true- Success ( Both String are same in permutation)
-       - False - Failure ( Both string are not same)
-
-*/
-func compareString (sourceStr: String? , destStr : String? ) -> Bool  {
-  
-  
-  //Validate String is not null
-  
-  if ( sourceStr == nil || destStr == nil ||
-       sourceStr?.isEmpty == true || destStr?.isEmpty == true) {
+    // Two string are permutated or not
+    //Ex: "abcd"  , "dcab" -> true  "abcd" , "abde" -> false
+    func compareString (string1: String? , string2 : String? ) -> Bool  {
         
-         // Nothing to test
-         return false
-         
-       }
-  
-  // Lenght case - Use case "abcde" with "abcdef"
-   if (sourceStr?.characters.count !=  destStr?.characters.count) {
-     return false
-   }
-      
-  
-  var str1 = ""
-  var str2 = ""
-      
-      //convert to lower case
-      str1 = sourceStr!.lowercased()
-      str2 = destStr!.lowercased()
-      
-  //validate  -- "abcd" with "bcda"
-    let char1 = str1.characters.sorted()
-    let char2 = str2.characters.sorted()
-      
-      
- 
-      if char1 == char2 {
-       return true 
-      }
-     
-      return false
-  
-  
-  
-}
-
-/*
-computePermuteFor - to compute using Dictionary as Hashmap in swift 3
-*/
-
- func computePermuteFor (firstStr: String? , andSecondStr : String? ) -> Bool  {
+        //Validate String is not null
+        if ( string1 == nil || string2 == nil ||
+            string1?.isEmpty == true || string2?.isEmpty == true) {
+            // Nothing to test
+            return false
+        }
+        // Lenght case - Use case "abcde" with "abcdef"
+        if (string1?.characters.count !=  string2?.characters.count) {
+            return false
+        }
+        
+        var str1 = ""
+        var str2 = ""
+        //convert to lower case
+        str1 = string1!.lowercased()
+        str2 = string2!.lowercased()
+        
+        //validate  -- "abcd" with "bcda"
+        let char1 = str1.characters.sorted()
+        let char2 = str2.characters.sorted()
+        if char1 == char2 {
+            return true
+        }
+        return false
+    
+    }
+    
+    // ComputePermuteFor - to compute using Dictionary as Hashmap in swift 3
+    func computePermuteFor (firstStr: String? , andSecondStr : String? ) -> Bool  {
         //Validate String is not null
         if ( firstStr == nil || andSecondStr == nil ||
             firstStr?.isEmpty == true || andSecondStr?.isEmpty == true) {
-            
             // Nothing to test ( Nothing to compare)
             return false
             
         }
-        
+    
         // Lenght case - Use case "abcde" with "abcdef"
         if (firstStr?.characters.count !=  andSecondStr?.characters.count) {
             return false
@@ -78,9 +49,8 @@ computePermuteFor - to compute using Dictionary as Hashmap in swift 3
         let char1Array = Array(firstStr!.characters)
         let char2Array = Array(andSecondStr!.characters)
         
-        //assign char as key and have count as value in 
+        //assign char as key and have count as value in
         for char1 in char1Array  {
-            
             if hashDict[char1] != nil {
                 let countValue = hashDict[char1]
                 hashDict[char1] = countValue! + 1
@@ -88,17 +58,16 @@ computePermuteFor - to compute using Dictionary as Hashmap in swift 3
             else {
                 hashDict[char1] = 1
             }
-            
         }
         
-        for char2 in char2Array 
+        for char2 in char2Array
         {
             if hashDict[char2] == nil
             {
                 // break and send false  as andSecondStr char is not present in firstStr
-                return false   
+                return false
             }
-            else 
+            else
             {
                 let countValue = hashDict[char2]
                 hashDict[char2] = countValue! - 1
@@ -111,4 +80,17 @@ computePermuteFor - to compute using Dictionary as Hashmap in swift 3
             }   
         }
         return true
+    }
+    
+    func checkPalindromeFor ( string1: String) -> Bool {
+        
+        if string1.characters.count < 2 {
+            return false
+        }
+        let string1 = string1.lowercased()
+        let string2 = String(string1.characters.reversed())
+        if string2 == string1 {
+            return true
+        }
+        return false
     }
